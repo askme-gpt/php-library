@@ -170,10 +170,10 @@ function createDirectoryRecursive($directory)
 
 /**
  * 递归的复制目录和文件到另一个地方
- * @param string $source
+ * @author Bruce 2024/4/30
  * @param string $dest
  * @param bool $overwrite
- * @author Bruce 2024/4/30
+ * @param string $source
  */
 function copyDir(string $source, string $dest, bool $overwrite = false)
 {
@@ -190,6 +190,44 @@ function copyDir(string $source, string $dest, bool $overwrite = false)
     } elseif (file_exists($source) && ($overwrite || !file_exists($dest))) {
         copy($source, $dest);
     }
+}
+
+/**
+ * 压缩整个文件夹为压缩包
+ * @author Bruce 2024/4/30
+ * @param $zipFilePath
+ * @param $folderPath
+ * @return bool
+ */
+function zipFolder($folderPath, $zipFilePath)
+{
+    // 初始化 ZipArchive 对象
+    $zip = new ZipArchive();
+
+    // 打开或创建 ZIP 文件
+    if ($zip->open($zipFilePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
+        return false;
+    }
+
+    // 创建递归迭代器
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($folderPath),
+        RecursiveIteratorIterator::LEAVES_ONLY
+    );
+
+    foreach ($files as $name => $file) {
+        // 跳过当前目录和父目录
+        if (!$file->isDir()) {
+            $filePath = $file->getRealPath();
+            $relativePath = substr($filePath, strlen($folderPath) + 1);
+
+            // 将文件添加到 ZIP
+            $zip->addFile($filePath, $relativePath);
+        }
+    }
+    // 关闭 ZIP 文件
+    $zip->close();
+    return true;
 }
 
 /**
@@ -221,4 +259,31 @@ function generateTree($array, $indent = 0, &$result = '')
         }
     }
 }
+
+/**
+ * 读取超大文件
+ * @author Bruce 2024/4/30
+ * @param $callback
+ * @param $chunkSize
+ * @param $filePath
+ */
+function readLargeFile($filePath, $callback, $chunkSize = 10240000)
+{
+    $fileHandle = fopen($filePath, 'r');
+    if (!$fileHandle) {
+        throw new Exception("Unable to open file: $filePath");
+    }
+
+    while (!feof($fileHandle)) {
+        $chunk = fread($fileHandle, $chunkSize);
+        if ($chunk === false) {
+            throw new Exception('Error reading file');
+        }
+        call_user_func($callback, $chunk);
+    }
+
+    fclose($fileHandle);
+}
+
+
 

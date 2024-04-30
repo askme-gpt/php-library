@@ -163,4 +163,79 @@ function copyDir(string $source, string $dest, bool $overwrite = false)
 copyDir('./form','./to');
 ```
 
-6.
+6.读取超大文件
+```php
+function readLargeFile($filePath, $callback, $chunkSize = 10240000)
+{
+    $fileHandle = fopen($filePath, 'r');
+    if (!$fileHandle) {
+        throw new Exception("Unable to open file: $filePath");
+    }
+
+    while (!feof($fileHandle)) {
+        $chunk = fread($fileHandle, $chunkSize);
+        if ($chunk === false) {
+            throw new Exception('Error reading file');
+        }
+        call_user_func($callback, $chunk);
+    }
+
+    fclose($fileHandle);
+}
+
+// 示例用法：
+$filePath = 'word.json';
+
+readLargeFile($filePath, function ($chunk) {
+    // 处理每个数据块
+    file_put_contents('word_new.json', $chunk, FILE_APPEND);
+    $memoryAfter = memory_get_usage() / 1024 / 1024; // 转换为MB
+    echo $memoryAfter . PHP_EOL;
+    // echo '11111111111' .  memory_get_peak_usage() . '11111111111';
+});
+// 获取执行后的内存使用情况
+$peakMemoryAfter = memory_get_peak_usage() / 1024 / 1024; // 转换为MB
+echo '最大内存消耗：' . $peakMemoryAfter . PHP_EOL;
+```
+
+7.压缩整个目录为压缩文件
+```php
+
+function zipFolder($folderPath, $zipFilePath)
+{
+    // 初始化 ZipArchive 对象
+    $zip = new ZipArchive();
+
+    // 打开或创建 ZIP 文件
+    if ($zip->open($zipFilePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
+        die("无法创建压缩文件\n");
+    }
+
+    // 创建递归迭代器
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($folderPath),
+        RecursiveIteratorIterator::LEAVES_ONLY
+    );
+
+    foreach ($files as $name => $file) {
+        // 跳过当前目录和父目录
+        if (!$file->isDir()) {
+            $filePath = $file->getRealPath();
+            $relativePath = substr($filePath, strlen($folderPath) + 1);
+
+            // 将文件添加到 ZIP
+            $zip->addFile($filePath, $relativePath);
+        }
+    }
+
+    // 关闭 ZIP 文件
+    $zip->close();
+
+    echo "压缩完成！\n";
+}
+
+// 使用示例
+$folderPath = './';
+$zipFilePath = '../folder.zip';
+zipFolder($folderPath, $zipFilePath);
+```
